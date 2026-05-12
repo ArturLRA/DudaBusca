@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { HomeScreen } from '../screens/HomeScreen'
 import { NewReportScreen } from '../screens/NewReportScreen'
+import { LiveVideoScreen } from '../screens/LiveVideoScreen'
 import { ReportScreen } from '../screens/ReportScreen'
 import { SubmittedScreen } from '../screens/SubmittedScreen'
 import { ProfileScreen } from '../screens/ProfileScreen'
@@ -16,6 +17,7 @@ export function AppNavigator() {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="NewReport" component={NewReportScreen} />
+        <Stack.Screen name="LiveVideo" component={LiveVideoScreen} />
         <Stack.Screen name="Report" component={ReportScreen} />
         <Stack.Screen
           name="Submitted"

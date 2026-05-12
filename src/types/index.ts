@@ -41,6 +41,7 @@ export interface User {
 export type RootStackParamList = {
   Home: undefined
   NewReport: undefined
+  LiveVideo: undefined
   Report: { reportId?: string; analyzedItems?: AnalyzedItem[]; imageUri?: string }
   Submitted: undefined
   Profile: undefined

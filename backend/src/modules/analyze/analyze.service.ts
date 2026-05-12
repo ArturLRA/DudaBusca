@@ -39,7 +39,7 @@ export class AnalyzeService {
       this.geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
       this.logger.log('Gemini client initialized')
     } else {
-      this.logger.warn('GEMINI_API_KEY not set – using mock parsing in development')
+      this.logger.warn('GEMINI_API_KEY not set – product parsing will return empty results')
     }
   }
 
@@ -65,16 +65,13 @@ export class AnalyzeService {
   }
 
   private async runOCR(imageBuffer: Buffer): Promise<string> {
-    // Cloud Vision is initialized lazily to avoid startup errors when not configured.
-    // In production, set GOOGLE_APPLICATION_CREDENTIALS env var.
     const credPath = this.config.get<string>('GOOGLE_APPLICATION_CREDENTIALS')
     if (!credPath) {
-      this.logger.warn('GOOGLE_APPLICATION_CREDENTIALS not set – using mock OCR')
-      return this.mockOCRText()
+      this.logger.warn('GOOGLE_APPLICATION_CREDENTIALS not set – OCR skipped, returning empty text')
+      return ''
     }
 
     try {
-      // Dynamic import to avoid crash when credentials are missing
       const vision = await import('@google-cloud/vision')
       const client = new vision.ImageAnnotatorClient()
       const [result] = await client.textDetection({
@@ -82,26 +79,37 @@ export class AnalyzeService {
       })
       return result.textAnnotations?.[0]?.description ?? ''
     } catch (error) {
-      this.logger.error('Vision API error, using mock OCR', error)
-      return this.mockOCRText()
+      this.logger.error('Vision API error', error)
+      return ''
     }
   }
 
   private async parseWithGemini(ocrText: string): Promise<ParsedProduct[]> {
     if (!this.geminiModel) {
-      return this.mockParsedProducts()
+      this.logger.warn('Gemini not configured – returning empty product list')
+      return []
+    }
+
+    if (!ocrText.trim()) {
+      return []
     }
 
     const prompt = `
 Você é especialista em leitura de etiquetas de supermercado brasileiro.
-Texto OCR de uma gôndola:
+Texto OCR extraído de uma imagem de gôndola:
 
 ${ocrText}
 
 Retorne APENAS um array JSON válido (sem markdown, sem explicações):
 [{"produto":"nome normalizado","preco":0.00,"confianca":0}]
 
-Regras: ignore propaganda e ruído; preço com ponto decimal; confiança 0–100; array vazio [] se não encontrar.`
+Regras OBRIGATÓRIAS:
+- Inclua SOMENTE produtos com nome E preço claramente legíveis no OCR acima
+- NÃO invente, complete ou suponha produtos que não estejam explicitamente no texto
+- Ignore textos que não sejam nomes de produto ou preços (propagandas, números de corredor, etc.)
+- Preço com ponto decimal (ex: 9.90)
+- Confiança 0–100 baseada na clareza do texto OCR
+- Se o OCR não contiver nenhum produto com preço identificável, retorne exatamente: []`
 
     try {
       const result = await this.geminiModel.generateContent(prompt)
@@ -112,7 +120,7 @@ Regras: ignore propaganda e ruído; preço com ponto decimal; confiança 0–100
       return parsed.filter((p) => p.confianca >= this.minConfidence)
     } catch (error) {
       this.logger.error('Gemini parse error', error)
-      return this.mockParsedProducts()
+      return []
     }
   }
 
@@ -157,31 +165,4 @@ Regras: ignore propaganda e ruído; preço com ponto decimal; confiança 0–100
     })
   }
 
-  private mockOCRText(): string {
-    return [
-      'ARROZ SOLTINHO DONA MARIA 1KG',
-      'R$ 29,90',
-      'ARROZ INTEGRAL CAMIL 1KG',
-      'R$ 24,50',
-      'FEIJAO CARIOCA KICALDO 1KG',
-      'R$ 9,90',
-      'MACARAO ESPAGUETE RENATA 500G',
-      'R$ 4,99',
-      'ACUCAR REFINADO UNIAO 1KG',
-      'R$ 5,49',
-      'OLEO DE SOJA LIZA 900ML',
-      'R$ 8,99',
-    ].join('\n')
-  }
-
-  private mockParsedProducts(): ParsedProduct[] {
-    return [
-      { produto: 'Arroz Soltinho Dona Maria 1kg', preco: 29.90, confianca: 94 },
-      { produto: 'Arroz Integral Camil 1kg', preco: 24.50, confianca: 91 },
-      { produto: 'Feijão Carioca Kicaldo 1kg', preco: 9.90, confianca: 88 },
-      { produto: 'Macarrão Espaguete Renata 500g', preco: 4.99, confianca: 90 },
-      { produto: 'Açúcar Refinado União 1kg', preco: 5.49, confianca: 87 },
-      { produto: 'Óleo de Soja Liza 900ml', preco: 8.99, confianca: 92 },
-    ]
-  }
 }

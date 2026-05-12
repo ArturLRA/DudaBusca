@@ -91,11 +91,7 @@ export function NewReportScreen() {
   }
 
   function handleLiveVideo() {
-    Alert.alert(
-      'Vídeo ao vivo',
-      'Análise em tempo real estará disponível em breve.',
-      [{ text: 'OK' }],
-    )
+    navigation.navigate('LiveVideo')
   }
 
   return (
