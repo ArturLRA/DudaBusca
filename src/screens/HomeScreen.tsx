@@ -16,8 +16,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { Header } from '../components/Header'
 import { ReportCard } from '../components/ReportCard'
-import { MOCK_REPORTS } from '../constants/mockData'
-import { COLORS, SPACING, FONT_SIZE } from '../constants/theme'
+import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme'
 import { Report, RootStackParamList } from '../types'
 import { api } from '../services/api'
 
@@ -41,10 +40,10 @@ export function HomeScreen() {
   const [reports, setReports] = useState<Report[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [apiError, setApiError] = useState(false)
 
   async function fetchReports(isRefresh = false) {
     if (!DEMO_USER_ID) {
-      setReports(MOCK_REPORTS)
       setLoading(false)
       return
     }
@@ -53,6 +52,7 @@ export function HomeScreen() {
       if (isRefresh) setRefreshing(true)
       else setLoading(true)
 
+      setApiError(false)
       const data = await api.reports.list(DEMO_USER_ID)
 
       const transformed: Report[] = data.map((r: any) => ({
@@ -68,7 +68,7 @@ export function HomeScreen() {
 
       setReports(transformed)
     } catch {
-      setReports(MOCK_REPORTS)
+      setApiError(true)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -139,7 +139,16 @@ export function HomeScreen() {
         >
           <Text style={styles.sectionTitle}>Meus relatórios</Text>
 
-          {reports.length === 0 ? (
+          {apiError ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="cloud-offline-outline" size={48} color={COLORS.placeholder} />
+              <Text style={styles.emptyText}>Sem conexão com o servidor.</Text>
+              <Text style={styles.emptySubtext}>Verifique a URL da API e tente novamente.</Text>
+              <TouchableOpacity style={styles.retryBtn} onPress={onRefresh}>
+                <Text style={styles.retryText}>Tentar novamente</Text>
+              </TouchableOpacity>
+            </View>
+          ) : reports.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="document-outline" size={48} color={COLORS.placeholder} />
               <Text style={styles.emptyText}>Nenhum relatório ainda.</Text>
@@ -222,6 +231,18 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: FONT_SIZE.sm,
     color: COLORS.placeholder,
+  },
+  retryBtn: {
+    marginTop: SPACING.md,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.sm,
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.full,
+  },
+  retryText: {
+    color: COLORS.white,
+    fontWeight: '700',
+    fontSize: FONT_SIZE.sm,
   },
   fab: {
     position: 'absolute',

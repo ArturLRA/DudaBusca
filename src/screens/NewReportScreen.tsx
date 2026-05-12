@@ -51,12 +51,20 @@ export function NewReportScreen() {
     setLoading(true)
     try {
       const result = await api.analyze(uri)
+      if (result.items.length === 0) {
+        Alert.alert(
+          'Nenhum produto encontrado',
+          'A IA não identificou produtos com preço legível nesta imagem. Tente uma foto mais próxima das etiquetas.',
+          [{ text: 'OK' }],
+        )
+        return
+      }
       navigation.navigate('Report', { analyzedItems: result.items, imageUri: uri })
     } catch {
       Alert.alert(
-        'Erro na análise',
-        'Não foi possível analisar a imagem. Prosseguindo com lista manual.',
-        [{ text: 'OK', onPress: () => navigation.navigate('Report', {}) }],
+        'Erro de conexão',
+        'Não foi possível conectar ao servidor de análise. Verifique sua conexão e tente novamente.',
+        [{ text: 'OK' }],
       )
     } finally {
       setLoading(false)
