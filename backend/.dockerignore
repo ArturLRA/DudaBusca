@@ -1,0 +1,12 @@
+node_modules
+dist
+drizzle
+.env
+*.env
+credentials/
+*.json.key
+**/*.test.ts
+**/*.spec.ts
+coverage/
+.git
+README.md

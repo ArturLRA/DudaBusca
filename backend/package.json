@@ -1,0 +1,38 @@
+{
+  "name": "dudabusca-backend",
+  "version": "1.0.0",
+  "description": "DudaBusca backend – gondola price auditing API",
+  "scripts": {
+    "start": "node -r dotenv/config dist/src/main",
+    "start:dev": "nest start --watch",
+    "build": "nest build",
+    "db:push": "drizzle-kit push",
+    "db:seed": "ts-node src/database/seed.ts",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@google-cloud/vision": "^4.2.0",
+    "@google/generative-ai": "^0.14.0",
+    "@neondatabase/serverless": "^0.9.3",
+    "@nestjs/common": "^10.3.10",
+    "@nestjs/config": "^3.2.3",
+    "@nestjs/core": "^10.3.10",
+    "@nestjs/platform-express": "^10.3.10",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "drizzle-orm": "^0.30.10",
+    "dotenv": "^16.4.5",
+    "fuse.js": "^7.0.0",
+    "multer": "^1.4.5-lts.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^10.3.2",
+    "@types/multer": "^1.4.11",
+    "@types/node": "^20.14.0",
+    "drizzle-kit": "^0.21.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}

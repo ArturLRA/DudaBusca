@@ -1,0 +1,44 @@
+{
+  "cli": {
+    "version": ">= 12.0.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://10.0.2.2:3000/api",
+        "EXPO_PUBLIC_DEMO_USER_ID": "3ddc7bb6-bd58-4cb5-9912-6ec983850d3e"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://10.0.2.2:3000/api",
+        "EXPO_PUBLIC_DEMO_USER_ID": "3ddc7bb6-bd58-4cb5-9912-6ec983850d3e"
+      }
+    },
+    "production": {
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "ios": {
+        "resourceClass": "m-medium"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://dudabusca-backend-HASH-uc.a.run.app/api",
+        "EXPO_PUBLIC_DEMO_USER_ID": "3ddc7bb6-bd58-4cb5-9912-6ec983850d3e"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "android": {
+        "track": "internal"
+      }
+    }
+  }
+}

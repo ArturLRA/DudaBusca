@@ -1,15 +1,39 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
-# dependencies
+# ── Dependencies ──────────────────────────────────────────────────────────────
 node_modules/
+backend/node_modules/
 
-# Expo
+# ── Environment (NEVER commit real .env) ─────────────────────────────────────
+.env
+.env.local
+.env.*.local
+!.env.example
+!backend/.env.example
+
+# ── Google Cloud / credentials (NEVER commit) ─────────────────────────────────
+credentials/
+*.json.key
+google-service-account.json
+*-service-account*.json
+
+# ── Expo ─────────────────────────────────────────────────────────────────────
 .expo/
 dist/
 web-build/
 expo-env.d.ts
 
-# Native
+# ── EAS build artifacts ───────────────────────────────────────────────────────
+*.aab
+*.apk
+*.ipa
+*.keystore
+
+# ── Backend build ─────────────────────────────────────────────────────────────
+backend/dist/
+backend/drizzle/
+
+# ── Native ───────────────────────────────────────────────────────────────────
 .kotlin/
 *.orig.*
 *.jks
@@ -17,25 +41,28 @@ expo-env.d.ts
 *.p12
 *.key
 *.mobileprovision
+*.pem
+/ios
+/android
 
-# Metro
+# ── Metro ────────────────────────────────────────────────────────────────────
 .metro-health-check*
 
-# debug
+# ── Logs ─────────────────────────────────────────────────────────────────────
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+*.log
 
-# macOS
+# ── OS ───────────────────────────────────────────────────────────────────────
 .DS_Store
-*.pem
+Thumbs.db
 
-# local env files
-.env*.local
+# ── Claude Code ──────────────────────────────────────────────────────────────
+.claude/
 
-# typescript
+# ── TypeScript ───────────────────────────────────────────────────────────────
 *.tsbuildinfo
 
-# generated native folders
-/ios
-/android
+# ── Test ─────────────────────────────────────────────────────────────────────
+coverage/
