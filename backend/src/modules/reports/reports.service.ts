@@ -72,6 +72,19 @@ export class ReportsService {
     return report
   }
 
+  async remove(id: string) {
+    const [report] = await db
+      .select()
+      .from(auditReports)
+      .where(eq(auditReports.id, id))
+
+    if (!report) throw new NotFoundException(`Relatório ${id} não encontrado`)
+
+    await db.delete(auditItems).where(eq(auditItems.reportId, id))
+    await db.delete(auditReports).where(eq(auditReports.id, id))
+    return { success: true }
+  }
+
   async removeItem(reportId: string, itemId: string) {
     const [existing] = await db
       .select()

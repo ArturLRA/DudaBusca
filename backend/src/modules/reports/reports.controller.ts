@@ -30,6 +30,11 @@ export class ReportsController {
     return this.reportsService.create(dto)
   }
 
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.reportsService.remove(id)
+  }
+
   @Delete(':reportId/items/:itemId')
   removeItem(
     @Param('reportId') reportId: string,

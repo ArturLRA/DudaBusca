@@ -9,10 +9,9 @@ import { RootStackParamList } from '../types'
 interface HeaderProps {
   showBack?: boolean
   title?: string
-  onUserPress?: () => void
 }
 
-export function Header({ showBack = false, title = 'DudaBusca', onUserPress }: HeaderProps) {
+export function Header({ showBack = false, title = 'DudaBusca' }: HeaderProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>()
 
   return (
@@ -27,18 +26,7 @@ export function Header({ showBack = false, title = 'DudaBusca', onUserPress }: H
 
       <Text style={styles.title}>{title}</Text>
 
-      {!showBack ? (
-        <TouchableOpacity
-          onPress={onUserPress ?? (() => navigation.navigate('Profile'))}
-          style={styles.iconButton}
-        >
-          <View style={styles.userIconBg}>
-            <Ionicons name="person" size={18} color={COLORS.primary} />
-          </View>
-        </TouchableOpacity>
-      ) : (
-        <View style={styles.iconButton} />
-      )}
+      <View style={styles.iconButton} />
     </View>
   )
 }
@@ -61,14 +49,6 @@ const styles = StyleSheet.create({
   iconButton: {
     width: 36,
     height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  userIconBg: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: COLORS.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -86,6 +86,9 @@ export const api = {
         body: JSON.stringify(payload),
       }),
 
+    delete: (id: string) =>
+      request<{ success: boolean }>(`/reports/${id}`, { method: 'DELETE' }),
+
     removeItem: (reportId: string, itemId: string) =>
       request<{ success: boolean }>(`/reports/${reportId}/items/${itemId}`, {
         method: 'DELETE',

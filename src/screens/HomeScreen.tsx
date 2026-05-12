@@ -9,6 +9,7 @@ import {
   StatusBar,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
@@ -86,6 +87,29 @@ export function HomeScreen() {
 
   const onRefresh = () => fetchReports(true)
 
+  function handleDeleteReport(report: Report) {
+    Alert.alert(
+      'Excluir relatório',
+      `Excluir o relatório de ${report.corredor} · ${report.prateleira}? Esta ação não pode ser desfeita.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            setReports((prev) => prev.filter((r) => r.id !== report.id))
+            try {
+              await api.reports.delete(report.id)
+            } catch {
+              setReports((prev) => [...prev, report])
+              Alert.alert('Erro', 'Não foi possível excluir o relatório. Tente novamente.')
+            }
+          },
+        },
+      ],
+    )
+  }
+
   const rows: Report[][] = []
   for (let i = 0; i < reports.length; i += 2) {
     rows.push(reports.slice(i, i + 2))
@@ -113,7 +137,7 @@ export function HomeScreen() {
             />
           }
         >
-          <Text style={styles.sectionTitle}>Relatórios enviados</Text>
+          <Text style={styles.sectionTitle}>Meus relatórios</Text>
 
           {reports.length === 0 ? (
             <View style={styles.emptyState}>
@@ -129,6 +153,7 @@ export function HomeScreen() {
                     key={report.id}
                     report={report}
                     onPress={() => navigation.navigate('Report', { reportId: report.id })}
+                    onDelete={() => handleDeleteReport(report)}
                   />
                 ))}
                 {row.length === 1 && <View style={styles.emptyCell} />}
