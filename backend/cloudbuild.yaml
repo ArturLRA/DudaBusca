@@ -42,8 +42,7 @@ steps:
       - '--max-instances=10'
       - '--min-instances=0'
       - '--timeout=30s'
-      - '--set-secrets=DATABASE_URL=dudabusca-db-url:latest,GEMINI_API_KEY=dudabusca-gemini-key:latest'
-      - '--set-env-vars=NODE_ENV=production,MIN_CONFIDENCE=75'
+      - '--update-env-vars=NODE_ENV=production,MIN_CONFIDENCE=75'
     waitFor: ['push']
 
 images:
