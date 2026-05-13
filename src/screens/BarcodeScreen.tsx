@@ -8,6 +8,8 @@ import {
   StatusBar,
   ActivityIndicator,
   Alert,
+  Image,
+  ScrollView,
 } from 'react-native'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import { Ionicons } from '@expo/vector-icons'
@@ -36,7 +38,7 @@ export function BarcodeScreen() {
     } catch {
       Alert.alert(
         'Produto não encontrado',
-        `EAN ${data} não está no cadastro da loja.`,
+        `EAN ${data} não foi localizado no sistema nem na base global de produtos.`,
         [{ text: 'OK', onPress: () => setScanned(false) }],
       )
     } finally {
@@ -84,33 +86,90 @@ export function BarcodeScreen() {
       <Header showBack title="Código de Barras" />
 
       {result ? (
-        <View style={styles.resultContainer}>
-          <View style={styles.resultCard}>
-            <View style={styles.resultIconRow}>
-              <View style={styles.resultIconBg}>
-                <Ionicons name="barcode-outline" size={32} color={COLORS.primary} />
-              </View>
+        <ScrollView
+          style={styles.resultScroll}
+          contentContainerStyle={styles.resultContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Product image */}
+          {result.imageUrl ? (
+            <Image
+              source={{ uri: result.imageUrl }}
+              style={styles.productImage}
+              resizeMode="contain"
+            />
+          ) : (
+            <View style={styles.productImagePlaceholder}>
+              <Ionicons name="cube-outline" size={48} color={COLORS.placeholder} />
             </View>
+          )}
 
+          {/* Source badge */}
+          <View style={[
+            styles.sourceBadge,
+            result.source === 'local' ? styles.sourceBadgeLocal : styles.sourceBadgeOff,
+          ]}>
+            <Ionicons
+              name={result.source === 'local' ? 'checkmark-circle' : 'globe-outline'}
+              size={13}
+              color={result.source === 'local' ? COLORS.primary : '#1565C0'}
+            />
+            <Text style={[
+              styles.sourceBadgeText,
+              { color: result.source === 'local' ? COLORS.primary : '#1565C0' },
+            ]}>
+              {result.source === 'local' ? 'Cadastrado na loja' : 'Open Food Facts'}
+            </Text>
+          </View>
+
+          {/* Main card */}
+          <View style={styles.resultCard}>
             <Text style={styles.resultEan}>{lastEan}</Text>
             <Text style={styles.resultName}>{result.name}</Text>
 
-            {result.brand && (
-              <Text style={styles.resultBrand}>{result.brand}</Text>
-            )}
+            <View style={styles.detailsRow}>
+              {result.brand && (
+                <View style={styles.detailChip}>
+                  <Ionicons name="business-outline" size={12} color={COLORS.textSecondary} />
+                  <Text style={styles.detailChipText}>{result.brand}</Text>
+                </View>
+              )}
+              {result.category && (
+                <View style={styles.detailChip}>
+                  <Ionicons name="pricetag-outline" size={12} color={COLORS.textSecondary} />
+                  <Text style={styles.detailChipText} numberOfLines={1}>{result.category}</Text>
+                </View>
+              )}
+              {result.quantity && (
+                <View style={styles.detailChip}>
+                  <Ionicons name="scale-outline" size={12} color={COLORS.textSecondary} />
+                  <Text style={styles.detailChipText}>{result.quantity}</Text>
+                </View>
+              )}
+            </View>
 
-            {result.category && (
-              <Text style={styles.resultCategory}>{result.category}</Text>
-            )}
-
-            <View style={styles.priceBadge}>
-              {result.price !== null ? (
+            {/* Price box */}
+            <View style={[
+              styles.priceBox,
+              !result.inLocalCatalog && styles.priceBoxWarning,
+            ]}>
+              {result.inLocalCatalog && result.price !== null ? (
                 <>
                   <Text style={styles.priceLabel}>Preço cadastrado</Text>
                   <Text style={styles.priceValue}>R$ {result.price.toFixed(2)}</Text>
                 </>
+              ) : result.inLocalCatalog && result.price === null ? (
+                <>
+                  <Ionicons name="warning-outline" size={18} color="#E65100" />
+                  <Text style={[styles.priceLabel, { color: '#E65100' }]}>Sem preço cadastrado</Text>
+                  <Text style={styles.priceSubtext}>Produto encontrado, mas sem preço na loja</Text>
+                </>
               ) : (
-                <Text style={styles.priceUnavailable}>Preço não cadastrado</Text>
+                <>
+                  <Ionicons name="information-circle-outline" size={18} color="#1565C0" />
+                  <Text style={[styles.priceLabel, { color: '#1565C0' }]}>Fora do catálogo da loja</Text>
+                  <Text style={styles.priceSubtext}>Produto identificado pela base global mas não cadastrado aqui</Text>
+                </>
               )}
             </View>
           </View>
@@ -119,7 +178,7 @@ export function BarcodeScreen() {
             <Ionicons name="scan-outline" size={20} color={COLORS.white} style={{ marginRight: 8 }} />
             <Text style={styles.newScanBtnText}>Nova leitura</Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       ) : (
         <View style={styles.cameraContainer}>
           <CameraView
@@ -217,30 +276,10 @@ const styles = StyleSheet.create({
     height: CORNER_SIZE,
     borderColor: COLORS.white,
   },
-  cornerTL: {
-    top: 0,
-    left: 0,
-    borderTopWidth: CORNER_THICK,
-    borderLeftWidth: CORNER_THICK,
-  },
-  cornerTR: {
-    top: 0,
-    right: 0,
-    borderTopWidth: CORNER_THICK,
-    borderRightWidth: CORNER_THICK,
-  },
-  cornerBL: {
-    bottom: 0,
-    left: 0,
-    borderBottomWidth: CORNER_THICK,
-    borderLeftWidth: CORNER_THICK,
-  },
-  cornerBR: {
-    bottom: 0,
-    right: 0,
-    borderBottomWidth: CORNER_THICK,
-    borderRightWidth: CORNER_THICK,
-  },
+  cornerTL: { top: 0, left: 0, borderTopWidth: CORNER_THICK, borderLeftWidth: CORNER_THICK },
+  cornerTR: { top: 0, right: 0, borderTopWidth: CORNER_THICK, borderRightWidth: CORNER_THICK },
+  cornerBL: { bottom: 0, left: 0, borderBottomWidth: CORNER_THICK, borderLeftWidth: CORNER_THICK },
+  cornerBR: { bottom: 0, right: 0, borderBottomWidth: CORNER_THICK, borderRightWidth: CORNER_THICK },
   overlayBottom: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',
@@ -254,42 +293,67 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '500',
   },
-  resultContainer: {
+  resultScroll: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  resultContent: {
     padding: SPACING.md,
+    paddingBottom: SPACING.xl * 2,
+    gap: SPACING.sm,
+    alignItems: 'center',
+  },
+  productImage: {
+    width: 160,
+    height: 160,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.surface,
+  },
+  productImagePlaceholder: {
+    width: 120,
+    height: 120,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.surface,
+    alignItems: 'center',
     justifyContent: 'center',
-    gap: SPACING.md,
+  },
+  sourceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 5,
+    borderRadius: RADIUS.full,
+  },
+  sourceBadgeLocal: {
+    backgroundColor: COLORS.primaryLight,
+  },
+  sourceBadgeOff: {
+    backgroundColor: '#E3F2FD',
+  },
+  sourceBadgeText: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '600',
   },
   resultCard: {
     backgroundColor: COLORS.white,
     borderRadius: RADIUS.lg,
-    padding: SPACING.lg,
+    padding: SPACING.md,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: COLORS.border,
-    elevation: 2,
+    width: '100%',
+    gap: SPACING.sm,
+    elevation: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    gap: SPACING.sm,
-  },
-  resultIconRow: {
-    marginBottom: SPACING.sm,
-  },
-  resultIconBg: {
-    width: 64,
-    height: 64,
-    borderRadius: RADIUS.full,
-    backgroundColor: COLORS.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
   },
   resultEan: {
-    fontSize: FONT_SIZE.sm,
+    fontSize: FONT_SIZE.xs,
     color: COLORS.placeholder,
-    letterSpacing: 1,
+    letterSpacing: 1.5,
     fontFamily: 'monospace',
   },
   resultName: {
@@ -298,24 +362,36 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     textAlign: 'center',
   },
-  resultBrand: {
-    fontSize: FONT_SIZE.md,
+  detailsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+  },
+  detailChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+  },
+  detailChipText: {
+    fontSize: FONT_SIZE.xs,
     color: COLORS.textSecondary,
+    maxWidth: 120,
   },
-  resultCategory: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.placeholder,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  priceBadge: {
-    marginTop: SPACING.sm,
+  priceBox: {
+    width: '100%',
     backgroundColor: COLORS.primaryLight,
     borderRadius: RADIUS.md,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.lg,
+    padding: SPACING.md,
     alignItems: 'center',
-    width: '100%',
+    gap: 4,
+  },
+  priceBoxWarning: {
+    backgroundColor: '#E3F2FD',
   },
   priceLabel: {
     fontSize: FONT_SIZE.xs,
@@ -328,12 +404,12 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.xxl,
     fontWeight: '800',
     color: COLORS.primary,
-    marginTop: 2,
   },
-  priceUnavailable: {
-    fontSize: FONT_SIZE.md,
+  priceSubtext: {
+    fontSize: FONT_SIZE.xs,
     color: COLORS.textSecondary,
-    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 2,
   },
   newScanBtn: {
     flexDirection: 'row',
@@ -342,6 +418,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     borderRadius: RADIUS.full,
     paddingVertical: 14,
+    width: '100%',
   },
   newScanBtnText: {
     color: COLORS.white,

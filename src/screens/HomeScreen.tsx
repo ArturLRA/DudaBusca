@@ -75,6 +75,10 @@ export function HomeScreen() {
     }
   }
 
+  useEffect(() => {
+    fetchReports()
+  }, [])
+
   useFocusEffect(
     useCallback(() => {
       fetchReports()

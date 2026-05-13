@@ -46,12 +46,16 @@ export interface AnalyzedItem {
 }
 
 export interface BarcodeProduct {
-  id: string
+  source: 'local' | 'open_food_facts'
+  id: string | null
   ean: string
   name: string
   brand: string | null
   category: string | null
+  quantity: string | null
   price: number | null
+  imageUrl: string | null
+  inLocalCatalog: boolean
 }
 
 export interface ReportSummary {
