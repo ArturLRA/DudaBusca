@@ -44,10 +44,7 @@ export class AnalyzeService {
   }
 
   async analyze(imageBuffer: Buffer): Promise<{ items: AnalyzedItem[] }> {
-    const ocrText = await this.runOCR(imageBuffer)
-    this.logger.debug(`OCR extracted ${ocrText.length} chars`)
-
-    const parsed = await this.parseWithGemini(ocrText)
+    const parsed = await this.parseWithGemini(imageBuffer)
     this.logger.log(`Found ${parsed.length} products above confidence threshold`)
 
     const allProducts = await db
@@ -64,56 +61,34 @@ export class AnalyzeService {
     return { items }
   }
 
-  private async runOCR(imageBuffer: Buffer): Promise<string> {
-    const credPath = this.config.get<string>('GOOGLE_APPLICATION_CREDENTIALS')
-    if (!credPath) {
-      this.logger.warn('GOOGLE_APPLICATION_CREDENTIALS not set – OCR skipped, returning empty text')
-      return ''
-    }
-
-    try {
-      const vision = await import('@google-cloud/vision')
-      const client = new vision.ImageAnnotatorClient()
-      const [result] = await client.textDetection({
-        image: { content: imageBuffer.toString('base64') },
-      })
-      return result.textAnnotations?.[0]?.description ?? ''
-    } catch (error) {
-      this.logger.error('Vision API error', error)
-      return ''
-    }
-  }
-
-  private async parseWithGemini(ocrText: string): Promise<ParsedProduct[]> {
+  private async parseWithGemini(imageBuffer: Buffer): Promise<ParsedProduct[]> {
     if (!this.geminiModel) {
       this.logger.warn('Gemini not configured – returning empty product list')
       return []
     }
 
-    if (!ocrText.trim()) {
-      return []
-    }
-
     const prompt = `
 Você é especialista em leitura de etiquetas de supermercado brasileiro.
-Texto OCR extraído de uma imagem de gôndola:
-
-${ocrText}
+Analise esta imagem de gôndola/prateleira de supermercado.
 
 Retorne APENAS um array JSON válido (sem markdown, sem explicações):
 [{"produto":"nome normalizado","preco":0.00,"confianca":0}]
 
 Regras OBRIGATÓRIAS:
-- Inclua SOMENTE produtos com nome E preço claramente legíveis no OCR acima
-- NÃO invente, complete ou suponha produtos que não estejam explicitamente no texto
-- Ignore textos que não sejam nomes de produto ou preços (propagandas, números de corredor, etc.)
+- Inclua SOMENTE produtos com nome E preço claramente visíveis na imagem
+- NÃO invente produtos que não estejam visíveis
+- Normalize o nome: ex "QJ PARMESAO" → "Queijo Parmesão"
 - Preço com ponto decimal (ex: 9.90)
-- Confiança 0–100 baseada na clareza do texto OCR
-- Se o OCR não contiver nenhum produto com preço identificável, retorne exatamente: []`
+- Confiança 0–100 baseada na clareza do texto na imagem
+- Se não houver nenhum produto com preço identificável, retorne exatamente: []`
 
     try {
-      const result = await this.geminiModel.generateContent(prompt)
+      const result = await this.geminiModel.generateContent([
+        { inlineData: { mimeType: 'image/jpeg', data: imageBuffer.toString('base64') } },
+        prompt,
+      ])
       const text: string = result.response.text().trim()
+      this.logger.debug(`Gemini raw response: ${text.slice(0, 200)}`)
       const match = text.match(/\[[\s\S]*\]/)
       if (!match) return []
       const parsed: ParsedProduct[] = JSON.parse(match[0])
