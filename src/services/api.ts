@@ -69,7 +69,7 @@ export const api = {
 
     create: (payload: {
       userId: string
-      storeId: string
+      storeId?: string
       corredor?: string
       prateleira?: string
       imageUrl?: string

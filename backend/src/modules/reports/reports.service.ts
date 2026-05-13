@@ -42,11 +42,17 @@ export class ReportsService {
   }
 
   async create(dto: CreateReportDto) {
+    let storeId = dto.storeId
+    if (!storeId) {
+      const [user] = await db.select().from(users).where(eq(users.id, dto.userId))
+      storeId = user?.storeId ?? undefined
+    }
+
     const [report] = await db
       .insert(auditReports)
       .values({
         userId: dto.userId,
-        storeId: dto.storeId,
+        storeId: storeId ?? null,
         corredor: dto.corredor,
         prateleira: dto.prateleira,
         imageUrl: dto.imageUrl,

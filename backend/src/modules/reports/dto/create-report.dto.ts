@@ -25,7 +25,8 @@ export class CreateReportDto {
   userId: string
 
   @IsUUID()
-  storeId: string
+  @IsOptional()
+  storeId?: string
 
   @IsString()
   @IsOptional()

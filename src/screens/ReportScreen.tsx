@@ -8,24 +8,28 @@ import {
   SafeAreaView,
   StatusBar,
   Image,
+  ActivityIndicator,
+  Alert,
 } from 'react-native'
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { Ionicons } from '@expo/vector-icons'
 import { Header } from '../components/Header'
-import { MOCK_PRODUCTS } from '../constants/mockData'
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme'
 import { AnalyzedItem, Product, RootStackParamList } from '../types'
+import { api } from '../services/api'
 
 type Nav = NativeStackNavigationProp<RootStackParamList>
 type RouteProps = RouteProp<RootStackParamList, 'Report'>
+
+const DEMO_USER_ID = process.env.EXPO_PUBLIC_DEMO_USER_ID ?? ''
 
 function toProduct(item: AnalyzedItem, index: number): Product {
   return {
     id: item.productId ?? `temp-${index}`,
     name: item.name,
-    corredor: 'Corredor 5',
-    prateleira: `prateleira ${17 + index}`,
+    corredor: 'Corredor',
+    prateleira: 'Prateleira',
     detectedPrice: item.detectedPrice,
     correctPrice: item.correctPrice ?? undefined,
     hasDivergence: item.hasDivergence,
@@ -37,18 +41,42 @@ export function ReportScreen() {
   const route = useRoute<RouteProps>()
   const { analyzedItems, imageUri } = route.params ?? {}
 
-  const initialProducts: Product[] = analyzedItems
-    ? analyzedItems.map(toProduct)
-    : MOCK_PRODUCTS
-
-  const [products, setProducts] = useState<Product[]>(initialProducts)
+  const [products, setProducts] = useState<Product[]>(
+    analyzedItems ? analyzedItems.map(toProduct) : [],
+  )
+  const [submitting, setSubmitting] = useState(false)
 
   function handleRemove(id: string) {
     setProducts((prev) => prev.filter((p) => p.id !== id))
   }
 
-  function handleSubmit() {
-    navigation.navigate('Submitted')
+  async function handleSubmit() {
+    if (products.length === 0) {
+      Alert.alert('Relatório vazio', 'Adicione ao menos um item antes de enviar.')
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const report = await api.reports.create({
+        userId: DEMO_USER_ID,
+        items: products.map((p) => ({
+          productId: p.id.startsWith('temp-') ? undefined : p.id,
+          name: p.name,
+          detectedPrice: String(p.detectedPrice ?? 0),
+          correctPrice: p.correctPrice != null ? String(p.correctPrice) : undefined,
+          confidence: 95,
+        })),
+      })
+
+      await api.reports.submit(report.id)
+
+      navigation.reset({ index: 0, routes: [{ name: 'Home' }] })
+    } catch {
+      Alert.alert('Erro ao enviar', 'Não foi possível salvar o relatório. Tente novamente.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const divergenceCount = products.filter((p) => p.hasDivergence).length
@@ -71,7 +99,9 @@ export function ReportScreen() {
           <Text style={styles.listTitle}>Relatório</Text>
           {divergenceCount > 0 && (
             <View style={styles.badge}>
-              <Text style={styles.badgeText}>{divergenceCount} divergência{divergenceCount > 1 ? 's' : ''}</Text>
+              <Text style={styles.badgeText}>
+                {divergenceCount} divergência{divergenceCount > 1 ? 's' : ''}
+              </Text>
             </View>
           )}
         </View>
@@ -82,37 +112,56 @@ export function ReportScreen() {
               <View style={styles.productInfo}>
                 <View style={styles.productNameRow}>
                   {product.hasDivergence && (
-                    <Ionicons name="alert-circle" size={14} color={COLORS.error} style={styles.alertIcon} />
+                    <Ionicons
+                      name="alert-circle"
+                      size={14}
+                      color={COLORS.error}
+                      style={styles.alertIcon}
+                    />
                   )}
-                  <Text style={styles.productName} numberOfLines={1}>{product.name}</Text>
+                  <Text style={styles.productName} numberOfLines={1}>
+                    {product.name}
+                  </Text>
                 </View>
-                <Text style={styles.productLocation}>
-                  {product.corredor} · {product.prateleira}
-                </Text>
                 {product.hasDivergence && product.correctPrice != null && (
                   <Text style={styles.priceDiff}>
-                    Etiqueta: R$ {product.detectedPrice?.toFixed(2)} · Correto: R$ {product.correctPrice.toFixed(2)}
+                    Etiqueta: R$ {product.detectedPrice?.toFixed(2)} · Correto: R${' '}
+                    {product.correctPrice.toFixed(2)}
                   </Text>
+                )}
+                {!product.hasDivergence && product.detectedPrice != null && (
+                  <Text style={styles.priceOk}>R$ {product.detectedPrice.toFixed(2)} · OK</Text>
                 )}
               </View>
               <TouchableOpacity
                 style={styles.removeBtn}
                 onPress={() => handleRemove(product.id)}
+                disabled={submitting}
               >
-                <Text style={styles.removeBtnText}>Excluir</Text>
+                <Ionicons name="trash-outline" size={16} color={COLORS.white} />
               </TouchableOpacity>
             </View>
           ))}
 
           {products.length === 0 && (
             <View style={styles.emptyState}>
+              <Ionicons name="document-outline" size={40} color={COLORS.placeholder} />
               <Text style={styles.emptyText}>Nenhum item no relatório.</Text>
             </View>
           )}
         </ScrollView>
 
-        <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} activeOpacity={0.85}>
-          <Text style={styles.submitBtnText}>Enviar relatório</Text>
+        <TouchableOpacity
+          style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
+          onPress={handleSubmit}
+          activeOpacity={0.85}
+          disabled={submitting}
+        >
+          {submitting ? (
+            <ActivityIndicator color={COLORS.white} />
+          ) : (
+            <Text style={styles.submitBtnText}>Enviar relatório</Text>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -199,31 +248,29 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     flex: 1,
   },
-  productLocation: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
   priceDiff: {
     fontSize: FONT_SIZE.xs,
     color: COLORS.error,
     marginTop: 2,
     fontWeight: '500',
   },
-  removeBtn: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 6,
-    borderRadius: RADIUS.full,
-  },
-  removeBtnText: {
-    color: COLORS.white,
+  priceOk: {
     fontSize: FONT_SIZE.xs,
-    fontWeight: '600',
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  removeBtn: {
+    backgroundColor: COLORS.error,
+    width: 32,
+    height: 32,
+    borderRadius: RADIUS.md,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyState: {
-    padding: SPACING.xl,
+    padding: SPACING.xl * 2,
     alignItems: 'center',
+    gap: SPACING.sm,
   },
   emptyText: {
     color: COLORS.textSecondary,
@@ -235,6 +282,9 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.full,
     paddingVertical: 14,
     alignItems: 'center',
+  },
+  submitBtnDisabled: {
+    opacity: 0.6,
   },
   submitBtnText: {
     color: COLORS.white,
