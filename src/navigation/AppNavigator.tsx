@@ -7,6 +7,8 @@ import { LiveVideoScreen } from '../screens/LiveVideoScreen'
 import { ReportScreen } from '../screens/ReportScreen'
 import { SubmittedScreen } from '../screens/SubmittedScreen'
 import { ProfileScreen } from '../screens/ProfileScreen'
+import { BarcodeScreen } from '../screens/BarcodeScreen'
+import { DashboardScreen } from '../screens/DashboardScreen'
 import { RootStackParamList } from '../types'
 
 const Stack = createNativeStackNavigator<RootStackParamList>()
@@ -25,6 +27,8 @@ export function AppNavigator() {
           options={{ gestureEnabled: false }}
         />
         <Stack.Screen name="Profile" component={ProfileScreen} />
+        <Stack.Screen name="Barcode" component={BarcodeScreen} />
+        <Stack.Screen name="Dashboard" component={DashboardScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   )

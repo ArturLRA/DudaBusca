@@ -1,7 +1,24 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
-import { eq, desc } from 'drizzle-orm'
-import { db, auditReports, auditItems, users, products } from '../../database'
+import { eq, desc, sql, inArray } from 'drizzle-orm'
+import { db, auditReports, auditItems, users } from '../../database'
 import { CreateReportDto } from './dto/create-report.dto'
+
+export interface ReportSummary {
+  totalReports: number
+  totalItems: number
+  byIssue: {
+    correct: number
+    wrong_price: number
+    missing_label: number
+    empty_shelf: number
+    damaged_product: number
+    wrong_label: number
+    multiple_labels: number
+    expired_product: number
+    near_expiry: number
+  }
+  lastUpdated: string
+}
 
 @Injectable()
 export class ReportsService {
@@ -65,12 +82,11 @@ export class ReportsService {
         dto.items.map((item) => ({
           reportId: report.id,
           productId: item.productId ?? null,
+          name: item.name,
           detectedPrice: item.detectedPrice,
           correctPrice: item.correctPrice ?? null,
           confidence: item.confidence ?? null,
-          status: item.correctPrice && item.detectedPrice !== item.correctPrice
-            ? 'incorrect_price'
-            : 'confirmed',
+          issueType: item.issueType ?? 'correct',
         })),
       )
     }
@@ -120,5 +136,62 @@ export class ReportsService {
       .returning()
 
     return updated
+  }
+
+  async summary(userId: string): Promise<ReportSummary> {
+    const emptyByIssue = {
+      correct: 0,
+      wrong_price: 0,
+      missing_label: 0,
+      empty_shelf: 0,
+      damaged_product: 0,
+      wrong_label: 0,
+      multiple_labels: 0,
+      expired_product: 0,
+      near_expiry: 0,
+    }
+
+    const reports = await db
+      .select({ id: auditReports.id })
+      .from(auditReports)
+      .where(eq(auditReports.userId, userId))
+
+    if (reports.length === 0) {
+      return {
+        totalReports: 0,
+        totalItems: 0,
+        byIssue: emptyByIssue,
+        lastUpdated: new Date().toISOString(),
+      }
+    }
+
+    const reportIds = reports.map((r) => r.id)
+
+    const counts = await db
+      .select({
+        issueType: auditItems.issueType,
+        count: sql<number>`cast(count(*) as int)`,
+      })
+      .from(auditItems)
+      .where(inArray(auditItems.reportId, reportIds))
+      .groupBy(auditItems.issueType)
+
+    const byIssue = { ...emptyByIssue }
+    let totalItems = 0
+
+    for (const row of counts) {
+      const key = row.issueType as keyof typeof byIssue
+      if (key in byIssue) {
+        byIssue[key] = row.count
+      }
+      totalItems += row.count
+    }
+
+    return {
+      totalReports: reports.length,
+      totalItems,
+      byIssue,
+      lastUpdated: new Date().toISOString(),
+    }
   }
 }

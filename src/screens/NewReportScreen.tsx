@@ -23,11 +23,12 @@ type Nav = NativeStackNavigationProp<RootStackParamList>
 interface OptionRowProps {
   icon: keyof typeof Ionicons.glyphMap
   label: string
+  description: string
   onPress: () => void
   disabled?: boolean
 }
 
-function OptionRow({ icon, label, onPress, disabled }: OptionRowProps) {
+function OptionRow({ icon, label, description, onPress, disabled }: OptionRowProps) {
   return (
     <TouchableOpacity
       style={[styles.optionRow, disabled && styles.optionRowDisabled]}
@@ -38,7 +39,11 @@ function OptionRow({ icon, label, onPress, disabled }: OptionRowProps) {
       <View style={styles.optionIconBg}>
         <Ionicons name={icon} size={22} color={COLORS.primary} />
       </View>
-      <Text style={styles.optionLabel}>{label}</Text>
+      <View style={styles.optionText}>
+        <Text style={styles.optionLabel}>{label}</Text>
+        <Text style={styles.optionDescription}>{description}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={COLORS.placeholder} />
     </TouchableOpacity>
   )
 }
@@ -53,8 +58,8 @@ export function NewReportScreen() {
       const result = await api.analyze(uri)
       if (result.items.length === 0) {
         Alert.alert(
-          'Nenhum produto encontrado',
-          'A IA não identificou produtos com preço legível nesta imagem. Tente uma foto mais próxima das etiquetas.',
+          'Nenhum item encontrado',
+          'A IA não identificou produtos ou problemas nesta imagem. Tente uma foto mais próxima da gôndola.',
           [{ text: 'OK' }],
         )
         return
@@ -102,6 +107,10 @@ export function NewReportScreen() {
     navigation.navigate('LiveVideo')
   }
 
+  function handleBarcode() {
+    navigation.navigate('Barcode')
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
@@ -112,15 +121,37 @@ export function NewReportScreen() {
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={COLORS.primary} />
             <Text style={styles.loadingText}>Analisando gôndola...</Text>
-            <Text style={styles.loadingSubtext}>Vision API + Gemini processando</Text>
+            <Text style={styles.loadingSubtext}>Gemini identificando produtos e problemas</Text>
           </View>
         ) : (
           <>
-            <OptionRow icon="cloud-upload-outline" label="Upload de foto" onPress={handleUpload} />
+            <OptionRow
+              icon="cloud-upload-outline"
+              label="Upload de foto"
+              description="Selecione uma imagem da galeria"
+              onPress={handleUpload}
+            />
             <View style={styles.divider} />
-            <OptionRow icon="camera-outline" label="Abrir câmera" onPress={handleCamera} />
+            <OptionRow
+              icon="camera-outline"
+              label="Abrir câmera"
+              description="Fotografe a gôndola agora"
+              onPress={handleCamera}
+            />
             <View style={styles.divider} />
-            <OptionRow icon="videocam-outline" label="Vídeo ao vivo" onPress={handleLiveVideo} />
+            <OptionRow
+              icon="videocam-outline"
+              label="Vídeo ao vivo"
+              description="Captura automática a cada 4 segundos"
+              onPress={handleLiveVideo}
+            />
+            <View style={styles.divider} />
+            <OptionRow
+              icon="barcode-outline"
+              label="Código de barras"
+              description="Leia o EAN para consultar o preço"
+              onPress={handleBarcode}
+            />
           </>
         )}
       </View>
@@ -168,7 +199,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: SPACING.xl,
-    paddingVertical: SPACING.lg,
+    paddingVertical: SPACING.md,
   },
   optionRowDisabled: {
     opacity: 0.4,
@@ -182,10 +213,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: SPACING.md,
   },
+  optionText: {
+    flex: 1,
+  },
   optionLabel: {
-    fontSize: FONT_SIZE.lg,
+    fontSize: FONT_SIZE.md,
     color: COLORS.text,
-    fontWeight: '400',
+    fontWeight: '500',
+  },
+  optionDescription: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textSecondary,
+    marginTop: 2,
   },
   divider: {
     height: 1,

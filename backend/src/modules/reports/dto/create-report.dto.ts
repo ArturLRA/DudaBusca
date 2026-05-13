@@ -18,6 +18,14 @@ export class CreateAuditItemDto {
 
   @IsOptional()
   confidence?: number
+
+  @IsString()
+  @IsOptional()
+  issueType?: string
+
+  @IsString()
+  @IsOptional()
+  dataVencimento?: string
 }
 
 export class CreateReportDto {

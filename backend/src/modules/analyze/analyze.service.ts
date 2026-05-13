@@ -5,20 +5,37 @@ import Fuse from 'fuse.js'
 import { db, products, productPrices } from '../../database'
 import { eq } from 'drizzle-orm'
 
+export type IssueType =
+  | 'correct'
+  | 'wrong_price'
+  | 'missing_label'
+  | 'empty_shelf'
+  | 'damaged_product'
+  | 'wrong_label'
+  | 'multiple_labels'
+  | 'expired_product'
+  | 'near_expiry'
+
+type VisualIssueType = Exclude<IssueType, 'correct' | 'wrong_price'>
+
 interface ParsedProduct {
   produto: string
-  preco: number
+  preco: number | null
   confianca: number
+  issueType: VisualIssueType | null
+  dataVencimento?: string
 }
 
 export interface AnalyzedItem {
   productId: string | null
   name: string
-  detectedPrice: number
+  detectedPrice: number | null
   correctPrice: number | null
   hasDivergence: boolean
   confidence: number
   matchScore: number
+  issueType: IssueType
+  dataVencimento?: string
 }
 
 @Injectable()
@@ -28,7 +45,7 @@ export class AnalyzeService {
   private geminiModel: any
 
   constructor(private config: ConfigService) {
-    this.minConfidence = this.config.get<number>('MIN_CONFIDENCE', 75)
+    this.minConfidence = this.config.get<number>('MIN_CONFIDENCE', 60)
     this.initGemini()
   }
 
@@ -45,7 +62,7 @@ export class AnalyzeService {
 
   async analyze(imageBuffer: Buffer): Promise<{ items: AnalyzedItem[] }> {
     const parsed = await this.parseWithGemini(imageBuffer)
-    this.logger.log(`Found ${parsed.length} products above confidence threshold`)
+    this.logger.log(`Found ${parsed.length} items (including issues) above confidence threshold`)
 
     const allProducts = await db
       .select({
@@ -68,19 +85,32 @@ export class AnalyzeService {
     }
 
     const prompt = `
-Você é especialista em leitura de etiquetas de supermercado brasileiro.
-Analise esta imagem de gôndola/prateleira de supermercado.
+Você é especialista em auditoria de gôndolas de supermercado brasileiro.
+Analise esta imagem de gôndola/prateleira e identifique TODOS os itens e problemas visíveis.
 
 Retorne APENAS um array JSON válido (sem markdown, sem explicações):
-[{"produto":"nome normalizado","preco":0.00,"confianca":0}]
+[{"produto":"nome normalizado","preco":9.90,"confianca":85,"issueType":null,"dataVencimento":null}]
 
-Regras OBRIGATÓRIAS:
-- Inclua SOMENTE produtos com nome E preço claramente visíveis na imagem
-- NÃO invente produtos que não estejam visíveis
-- Normalize o nome: ex "QJ PARMESAO" → "Queijo Parmesão"
-- Preço com ponto decimal (ex: 9.90)
-- Confiança 0–100 baseada na clareza do texto na imagem
-- Se não houver nenhum produto com preço identificável, retorne exatamente: []`
+TIPOS DE PROBLEMA ("issueType") — defina null para produto OK com etiqueta legível:
+- null              → produto OK, preço visível e legível (backend verificará se o preço está correto)
+- "missing_label"   → produto presente mas SEM etiqueta de preço ou etiqueta em branco/ilegível
+- "empty_shelf"     → espaço VAZIO na gôndola onde deveria haver produto
+- "damaged_product" → embalagem danificada (amassada, rasgada, aberta, vazando)
+- "wrong_label"     → etiqueta claramente de produto DIFERENTE do que está exposto
+- "multiple_labels" → DUAS ou mais etiquetas de preços DIFERENTES para o mesmo espaço
+- "expired_product" → data de validade VENCIDA visível na embalagem
+- "near_expiry"     → produto vence em até 7 dias (data visível na embalagem)
+
+REGRAS OBRIGATÓRIAS:
+- "preco": null quando sem etiqueta, espaço vazio ou preço ilegível
+- "preco": valor numérico quando visível (ex: 9.90)
+- "issueType": null para produto normal com etiqueta OK
+- "produto": normalize o nome (ex: "QJ PARMESAO" → "Queijo Parmesão")
+- Para "empty_shelf": "produto" descreve a localização (ex: "Vaga vazia - Biscoitos")
+- "dataVencimento": formato "YYYY-MM-DD", apenas para expired_product ou near_expiry
+- "confianca": 0–100 baseado na clareza visual
+- Inclua TODOS os itens e problemas visíveis, mesmo com confiança menor
+- Se nada identificável, retorne exatamente: []`
 
     try {
       const result = await this.geminiModel.generateContent([
@@ -88,7 +118,7 @@ Regras OBRIGATÓRIAS:
         prompt,
       ])
       const text: string = result.response.text().trim()
-      this.logger.debug(`Gemini raw response: ${text.slice(0, 200)}`)
+      this.logger.debug(`Gemini raw response: ${text.slice(0, 300)}`)
       const match = text.match(/\[[\s\S]*\]/)
       if (!match) return []
       const parsed: ParsedProduct[] = JSON.parse(match[0])
@@ -110,6 +140,22 @@ Regras OBRIGATÓRIAS:
     })
 
     return parsed.map((p) => {
+      // Visual issue detected — return immediately without DB price comparison
+      if (p.issueType !== null && p.issueType !== undefined) {
+        return {
+          productId: null,
+          name: p.produto,
+          detectedPrice: p.preco,
+          correctPrice: null,
+          hasDivergence: true,
+          confidence: p.confianca,
+          matchScore: 0,
+          issueType: p.issueType as IssueType,
+          dataVencimento: p.dataVencimento,
+        }
+      }
+
+      // No visual issue — compare against DB to determine correct vs wrong_price
       const matches = fuse.search(p.produto)
       const best = matches[0]
 
@@ -122,22 +168,27 @@ Regras OBRIGATÓRIAS:
           hasDivergence: false,
           confidence: p.confianca,
           matchScore: 0,
+          issueType: 'correct' as IssueType,
         }
       }
 
       const correctPrice = best.item.price ? parseFloat(best.item.price) : null
       const matchScore = Math.round((1 - (best.score ?? 1)) * 100)
+      const hasPriceDivergence =
+        correctPrice !== null &&
+        p.preco !== null &&
+        Math.abs(correctPrice - p.preco) > 0.01
 
       return {
         productId: best.item.id,
         name: best.item.name,
         detectedPrice: p.preco,
         correctPrice,
-        hasDivergence: correctPrice !== null && Math.abs(correctPrice - p.preco) > 0.01,
+        hasDivergence: hasPriceDivergence,
         confidence: p.confianca,
         matchScore,
+        issueType: (hasPriceDivergence ? 'wrong_price' : 'correct') as IssueType,
       }
     })
   }
-
 }

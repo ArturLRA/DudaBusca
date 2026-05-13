@@ -1,13 +1,17 @@
+import { BarcodeProduct, IssueType, ReportSummary } from '../types'
+
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000/api'
 
 interface AnalyzedItem {
   productId: string | null
   name: string
-  detectedPrice: number
+  detectedPrice: number | null
   correctPrice: number | null
   hasDivergence: boolean
   confidence: number
   matchScore: number
+  issueType: IssueType
+  dataVencimento?: string
 }
 
 interface ApiReport {
@@ -60,12 +64,20 @@ export const api = {
     return res.json()
   },
 
+  products: {
+    barcode: (ean: string) =>
+      request<BarcodeProduct>(`/products/barcode/${encodeURIComponent(ean)}`),
+  },
+
   reports: {
     list: (userId: string) =>
       request<ApiReport[]>(`/reports?userId=${encodeURIComponent(userId)}`),
 
     get: (id: string) =>
       request<ApiReport & { items: unknown[] }>(`/reports/${id}`),
+
+    summary: (userId: string) =>
+      request<ReportSummary>(`/reports/summary?userId=${encodeURIComponent(userId)}`),
 
     create: (payload: {
       userId: string
@@ -79,6 +91,8 @@ export const api = {
         detectedPrice: string
         correctPrice?: string
         confidence?: number
+        issueType?: IssueType
+        dataVencimento?: string
       }[]
     }) =>
       request<ApiReport>('/reports', {

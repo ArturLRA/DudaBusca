@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useCallback } from 'react'
 import {
   View,
   Text,
@@ -75,10 +75,6 @@ export function HomeScreen() {
     }
   }
 
-  useEffect(() => {
-    fetchReports()
-  }, [])
-
   useFocusEffect(
     useCallback(() => {
       fetchReports()
@@ -137,6 +133,24 @@ export function HomeScreen() {
             />
           }
         >
+          {/* Dashboard shortcut */}
+          <TouchableOpacity
+            style={styles.dashboardCard}
+            onPress={() => navigation.navigate('Dashboard')}
+            activeOpacity={0.85}
+          >
+            <View style={styles.dashboardCardLeft}>
+              <View style={styles.dashboardIconBg}>
+                <Ionicons name="bar-chart-outline" size={20} color={COLORS.primary} />
+              </View>
+              <View>
+                <Text style={styles.dashboardCardTitle}>Visão Geral da Loja</Text>
+                <Text style={styles.dashboardCardSub}>Conformidade, problemas e estatísticas</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={COLORS.placeholder} />
+          </TouchableOpacity>
+
           <Text style={styles.sectionTitle}>Meus relatórios</Text>
 
           {apiError ? (
@@ -201,6 +215,46 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: SPACING.md,
     paddingBottom: 100,
+  },
+  dashboardCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.white,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+  },
+  dashboardCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    flex: 1,
+  },
+  dashboardIconBg: {
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dashboardCardTitle: {
+    fontSize: FONT_SIZE.md,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  dashboardCardSub: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textSecondary,
+    marginTop: 1,
   },
   sectionTitle: {
     fontSize: FONT_SIZE.lg,

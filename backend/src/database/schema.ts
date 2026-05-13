@@ -66,10 +66,11 @@ export const auditItems = pgTable('audit_items', {
   id: uuid('id').defaultRandom().primaryKey(),
   reportId: uuid('report_id').references(() => auditReports.id),
   productId: uuid('product_id').references(() => products.id),
+  name: text('name'),
   detectedPrice: numeric('detected_price', { precision: 10, scale: 2 }),
   correctPrice: numeric('correct_price', { precision: 10, scale: 2 }),
   confidence: integer('confidence'),
-  status: text('status').notNull().default('incorrect_price'),
+  issueType: text('issue_type').notNull().default('correct'),
   createdAt: timestamp('created_at').defaultNow(),
 })
 

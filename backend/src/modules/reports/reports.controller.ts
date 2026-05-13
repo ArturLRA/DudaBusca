@@ -15,6 +15,11 @@ import { CreateReportDto } from './dto/create-report.dto'
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
+  @Get('summary')
+  summary(@Query('userId') userId: string) {
+    return this.reportsService.summary(userId)
+  }
+
   @Get()
   findAll(@Query('userId') userId: string) {
     return this.reportsService.findAllByUser(userId)
