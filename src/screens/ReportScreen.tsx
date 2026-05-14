@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   View,
   Text,
@@ -61,12 +61,41 @@ function toProduct(item: AnalyzedItem, index: number): Product {
 export function ReportScreen() {
   const navigation = useNavigation<Nav>()
   const route = useRoute<RouteProps>()
-  const { analyzedItems, imageUri } = route.params ?? {}
+  const { reportId, analyzedItems, imageUri } = route.params ?? {}
+
+  const isViewMode = !!reportId && !analyzedItems
 
   const [products, setProducts] = useState<Product[]>(
     analyzedItems ? analyzedItems.map(toProduct) : [],
   )
   const [submitting, setSubmitting] = useState(false)
+  const [loadingReport, setLoadingReport] = useState(isViewMode)
+
+  useEffect(() => {
+    if (!isViewMode) return
+    async function load() {
+      try {
+        const data = await api.reports.get(reportId!)
+        const items = (data.items as any[]).map((item, i): Product => ({
+          id: item.id ?? `item-${i}`,
+          name: item.name ?? 'Produto',
+          corredor: 'Corredor',
+          prateleira: 'Prateleira',
+          detectedPrice: item.detectedPrice != null ? parseFloat(item.detectedPrice) : null,
+          correctPrice: item.correctPrice != null ? parseFloat(item.correctPrice) : undefined,
+          issueType: item.issueType ?? 'correct',
+          confidence: item.confidence ?? undefined,
+          dataVencimento: item.dataVencimento ?? undefined,
+        }))
+        setProducts(items)
+      } catch {
+        Alert.alert('Erro', 'Não foi possível carregar o relatório.')
+      } finally {
+        setLoadingReport(false)
+      }
+    }
+    load()
+  }, [reportId])
 
   function handleRemove(id: string) {
     setProducts((prev) => prev.filter((p) => p.id !== id))
@@ -105,6 +134,18 @@ export function ReportScreen() {
 
   const problemCount = products.filter((p) => p.issueType !== 'correct').length
   const correctCount = products.filter((p) => p.issueType === 'correct').length
+
+  if (loadingReport) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+        <Header />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      </SafeAreaView>
+    )
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -187,13 +228,15 @@ export function ReportScreen() {
                     </Text>
                   )}
                 </View>
-                <TouchableOpacity
-                  style={styles.removeBtn}
-                  onPress={() => handleRemove(product.id)}
-                  disabled={submitting}
-                >
-                  <Ionicons name="trash-outline" size={16} color={COLORS.white} />
-                </TouchableOpacity>
+                {!isViewMode && (
+                  <TouchableOpacity
+                    style={styles.removeBtn}
+                    onPress={() => handleRemove(product.id)}
+                    disabled={submitting}
+                  >
+                    <Ionicons name="trash-outline" size={16} color={COLORS.white} />
+                  </TouchableOpacity>
+                )}
               </View>
             )
           })}
@@ -206,18 +249,20 @@ export function ReportScreen() {
           )}
         </ScrollView>
 
-        <TouchableOpacity
-          style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
-          onPress={handleSubmit}
-          activeOpacity={0.85}
-          disabled={submitting}
-        >
-          {submitting ? (
-            <ActivityIndicator color={COLORS.white} />
-          ) : (
-            <Text style={styles.submitBtnText}>Enviar relatório</Text>
-          )}
-        </TouchableOpacity>
+        {!isViewMode && (
+          <TouchableOpacity
+            style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
+            onPress={handleSubmit}
+            activeOpacity={0.85}
+            disabled={submitting}
+          >
+            {submitting ? (
+              <ActivityIndicator color={COLORS.white} />
+            ) : (
+              <Text style={styles.submitBtnText}>Enviar relatório</Text>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   )
@@ -227,6 +272,12 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: COLORS.primary,
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   photoBanner: {
     height: 140,
